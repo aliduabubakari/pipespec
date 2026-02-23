@@ -1,0 +1,25 @@
+{
+  "x_non_normative": true,
+  "x_purpose": "Prompt profile for LLM extraction. Generated from the canonical PipeSpec schema. Not intended for validation; use pipespec_schema_v1.json for validation.",
+  "x_generation": {
+    "source_schema": "schema/pipespec_schema_v1.json",
+    "deref_refs": true,
+    "notes": [
+      "This file is dereferenced (no $ref dependencies).",
+      "Descriptions are truncated; some constraints are removed to reduce size."
+    ]
+  },
+  "description": "PipeSpec v1: a platform-agnostic, LLM-friendly pipeline extraction format capturing components, DAG structure, parameters, and integrations.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "pipespec_version",
+    "metadata",
+    "pipeline_summary",
+    "components",
+    "flow_structure",
+    "parameters",
+    "integrations"
+  ],
+  "properties": {}
+}

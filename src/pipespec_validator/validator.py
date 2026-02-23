@@ -10,6 +10,7 @@ from jsonschema import Draft7Validator
 
 from .errors import PipeSpecParseError, PipeSpecSchemaLoadError
 from .models import ValidationErrorItem, ValidationResult
+from .semantic_rules import run_semantic_checks
 
 
 SCHEMA_VERSION = "1.0"
@@ -39,12 +40,18 @@ def load_schema() -> dict[str, Any]:
       src/pipespec_validator/data/pipespec_schema_v1.json
     """
     try:
-        # Python 3.10+ importlib.resources usage
         from importlib import resources
-        schema_text = resources.files("pipespec_validator.data").joinpath(BUNDLED_SCHEMA_NAME).read_text(encoding="utf-8")
+
+        schema_text = (
+            resources.files("pipespec_validator.data")
+            .joinpath(BUNDLED_SCHEMA_NAME)
+            .read_text(encoding="utf-8")
+        )
         return json.loads(schema_text)
     except Exception as e:  # pragma: no cover
-        raise PipeSpecSchemaLoadError(f"Failed to load bundled schema '{BUNDLED_SCHEMA_NAME}': {e}") from e
+        raise PipeSpecSchemaLoadError(
+            f"Failed to load bundled schema '{BUNDLED_SCHEMA_NAME}': {e}"
+        ) from e
 
 
 def _load_json_or_yaml(path: Path) -> Any:
@@ -105,11 +112,10 @@ def validate_dict(
             )
         )
 
-    # Semantic checks assume the document already satisfies the schema
-    # (correct types for components/nodes/edges/etc). If schema errors exist,
-    # skip semantic checks to avoid secondary crashes/noise.
+    # Semantic checks assume the document already satisfies the schema.
+    # If schema errors exist, skip semantic checks to avoid noise.
     if semantic_checks and not errors:
-        warnings.extend(_semantic_checks(doc))
+        warnings.extend(run_semantic_checks(doc))
 
     ok = len(errors) == 0
     return ValidationResult(ok=ok, schema_version=SCHEMA_VERSION, errors=errors, warnings=warnings)
@@ -154,131 +160,3 @@ def validate_file(
         )
 
     return validate_dict(loaded, semantic_checks=semantic_checks)
-
-
-def _semantic_checks(doc: dict[str, Any]) -> list[ValidationErrorItem]:
-    """
-    Non-schema checks that are still useful when authoring PipeSpec.
-
-    These are warnings by default (do not flip ok->False), because PipeSpec is
-    an extraction artefact and may be partially incomplete.
-    """
-    warnings: list[ValidationErrorItem] = []
-
-    components = doc.get("components") or []
-    component_ids: list[str] = []
-    for idx, c in enumerate(components):
-        cid = c.get("id")
-        if isinstance(cid, str):
-            component_ids.append(cid)
-        else:
-            warnings.append(
-                ValidationErrorItem(
-                    kind="semantic",
-                    message="Component missing string 'id' (cannot do cross-reference checks).",
-                    instance_path=f"/components/{idx}",
-                )
-            )
-
-    # duplicate component ids
-    seen: set[str] = set()
-    dups: set[str] = set()
-    for cid in component_ids:
-        if cid in seen:
-            dups.add(cid)
-        seen.add(cid)
-    if dups:
-        warnings.append(
-            ValidationErrorItem(
-                kind="semantic",
-                message=f"Duplicate component ids found: {sorted(dups)}",
-                instance_path="/components",
-            )
-        )
-
-    # integration ids set
-    integration_ids: set[str] = set()
-    integrations = (doc.get("integrations") or {}).get("connections") or []
-    for i in integrations:
-        iid = i.get("id")
-        if isinstance(iid, str):
-            integration_ids.add(iid)
-
-    # io_spec connection_id references
-    for cidx, c in enumerate(components):
-        io_spec = c.get("io_spec") or []
-        for iidx, io in enumerate(io_spec):
-            conn_id = io.get("connection_id")
-            if conn_id is None:
-                continue
-            if isinstance(conn_id, str) and conn_id not in integration_ids:
-                warnings.append(
-                    ValidationErrorItem(
-                        kind="semantic",
-                        message=f"io_spec.connection_id '{conn_id}' not found in integrations.connections[].id",
-                        instance_path=f"/components/{cidx}/io_spec/{iidx}/connection_id",
-                    )
-                )
-
-        conn_refs = c.get("connections") or []
-        for ridx, ref in enumerate(conn_refs):
-            rid = ref.get("id")
-            if isinstance(rid, str) and rid not in integration_ids:
-                warnings.append(
-                    ValidationErrorItem(
-                        kind="semantic",
-                        message=f"connections[].id '{rid}' not found in integrations.connections[].id",
-                        instance_path=f"/components/{cidx}/connections/{ridx}/id",
-                    )
-                )
-
-    # flow cross references
-    flow = doc.get("flow_structure") or {}
-    nodes = flow.get("nodes") or {}
-    node_ids = set(nodes.keys())
-
-    entry_points = flow.get("entry_points") or []
-    for eidx, ep in enumerate(entry_points):
-        if isinstance(ep, str) and ep not in node_ids:
-            warnings.append(
-                ValidationErrorItem(
-                    kind="semantic",
-                    message=f"entry_points contains '{ep}' not present in flow_structure.nodes",
-                    instance_path=f"/flow_structure/entry_points/{eidx}",
-                )
-            )
-
-    edges = flow.get("edges") or []
-    for eidx, edge in enumerate(edges):
-        frm = edge.get("from")
-        to = edge.get("to")
-        if isinstance(frm, str) and frm not in node_ids:
-            warnings.append(
-                ValidationErrorItem(
-                    kind="semantic",
-                    message=f"edge.from '{frm}' not present in flow_structure.nodes",
-                    instance_path=f"/flow_structure/edges/{eidx}/from",
-                )
-            )
-        if isinstance(to, str) and to not in node_ids:
-            warnings.append(
-                ValidationErrorItem(
-                    kind="semantic",
-                    message=f"edge.to '{to}' not present in flow_structure.nodes",
-                    instance_path=f"/flow_structure/edges/{eidx}/to",
-                )
-            )
-
-    # node component_type_id references
-    for nid, n in nodes.items():
-        ctid = n.get("component_type_id")
-        if isinstance(ctid, str) and ctid not in seen:
-            warnings.append(
-                ValidationErrorItem(
-                    kind="semantic",
-                    message=f"node.component_type_id '{ctid}' not found among components[].id",
-                    instance_path=f"/flow_structure/nodes/{nid}/component_type_id",
-                )
-            )
-
-    return warnings

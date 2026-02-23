@@ -16,3 +16,10 @@ pipespec-validate file.pipespec.json --semantic
 ```
 
 Semantic checks run only if the document passes schema validation.
+
+## Semantic validation
+
+Enable semantic checks (graph/DAG structure, cross-references, etc.):
+
+```bash
+pipespec-validate path/to/file.pipespec.json --semantic

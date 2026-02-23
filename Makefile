@@ -32,3 +32,10 @@ check-schema-sync:
 
 validate-examples:
 	python tools/validate_examples.py
+
+gen-prompt-profile:
+	python tools/make_prompt_profile.py
+
+sync-schema:
+	python tools/make_prompt_profile.py
+	python tools/sync_schema_into_package.py

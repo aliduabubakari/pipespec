@@ -43,6 +43,7 @@ packages = ["src/pipespec_validator"]
 [tool.hatch.build]
 include = [
   "src/pipespec_validator/data/pipespec_schema_v1.json",
+  "src/pipespec_validator/data/pipespec_prompt_profile_v1.json",
   "LICENSE",
   "NOTICE",
 ]

@@ -17,6 +17,7 @@ nav:
       - Taxonomy: schema/taxonomy.md
       - Versioning: schema/versioning.md
       - Design rationale: schema/design-rationale.md
+      - Semantic validation: schema/semantic-validation.md
   - Tooling:
       - pipespec-validate CLI: tooling/pipespec-validate.md
       - Python API: tooling/python-api.md
