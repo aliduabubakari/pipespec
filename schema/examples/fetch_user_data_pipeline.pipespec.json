@@ -1,0 +1,229 @@
+{
+    "pipespec_version": "1.0",
+    "metadata": {
+      "analysis_timestamp": "2025-11-28T12:38:46.819436Z",
+      "source_file": "Pipeline_Description_Dataset/assignment_template.py_description.txt",
+      "llm_provider": "deepinfra",
+      "llm_model": "Qwen3-Coder",
+      "analysis_results": {
+        "detected_patterns": ["sequential"],
+        "task_executors_used": ["http", "python", "sql", "custom"],
+        "has_branching": false,
+        "has_parallelism": false,
+        "has_sensors": false,
+        "total_components": 4,
+        "complexity_score": "low"
+      },
+      "validation_warnings": []
+    },
+    "pipeline_summary": {
+      "name": "fetch_user_data_pipeline",
+      "description": "Fetch user data from API, transform fields, create table, insert rows.",
+      "flow_patterns": ["sequential"],
+      "task_executors": ["http", "python", "sql", "custom"],
+      "complexity": "low"
+    },
+    "components": [
+      {
+        "id": "fetch_user_data",
+        "name": "Fetch User Data",
+        "category": "Extractor",
+        "description": "Fetch user data from external API endpoint.",
+        "executor_type": "http",
+        "executor_config": null,
+        "io_spec": [
+          {
+            "name": "reqres_endpoint",
+            "direction": "input",
+            "kind": "api",
+            "format": "json",
+            "path_pattern": "https://reqres.in/api/users/2",
+            "connection_id": "reqres_api"
+          },
+          {
+            "name": "raw_user_data",
+            "direction": "output",
+            "kind": "object",
+            "format": "json",
+            "path_pattern": null,
+            "connection_id": null
+          }
+        ],
+        "upstream_policy": { "type": "none_failed", "description": "First task", "timeout_seconds": null },
+        "retry_policy": { "max_attempts": 0, "delay_seconds": 0, "exponential_backoff": false, "retry_on": [] },
+        "concurrency": { "supports_parallelism": false, "supports_dynamic_mapping": false, "map_over_param": null, "max_parallel_instances": null },
+        "connections": [{ "id": "reqres_api", "type": "api", "purpose": "External user API" }],
+        "datasets": { "consumes": [], "produces": ["user_data_raw"] }
+      },
+      {
+        "id": "process_user_info",
+        "name": "Process User Information",
+        "category": "Transformer",
+        "description": "Extract firstname/lastname/email from API response.",
+        "executor_type": "python",
+        "executor_config": {
+          "image": null,
+          "command": null,
+          "script_path": null,
+          "entry_point": "_process_user",
+          "environment": {},
+          "resources": { "cpu": null, "memory": null, "gpu": null },
+          "network": null
+        },
+        "io_spec": [
+          { "name": "raw_user_data", "direction": "input", "kind": "object", "format": "json", "path_pattern": null, "connection_id": null },
+          { "name": "processed_user_fields", "direction": "output", "kind": "object", "format": "json", "path_pattern": null, "connection_id": null }
+        ],
+        "upstream_policy": { "type": "all_success", "description": "After fetch", "timeout_seconds": null },
+        "retry_policy": { "max_attempts": 0, "delay_seconds": 0, "exponential_backoff": false, "retry_on": [] },
+        "concurrency": { "supports_parallelism": false, "supports_dynamic_mapping": false, "map_over_param": null, "max_parallel_instances": null },
+        "connections": [],
+        "datasets": { "consumes": ["user_data_raw"], "produces": ["user_data_processed"] }
+      },
+      {
+        "id": "create_users_table",
+        "name": "Create Users Table",
+        "category": "Transformer",
+        "description": "Create PostgreSQL users table.",
+        "executor_type": "sql",
+        "executor_config": null,
+        "io_spec": [
+          { "name": "users_table", "direction": "output", "kind": "table", "format": "sql", "path_pattern": "users", "connection_id": "postgres_db" }
+        ],
+        "upstream_policy": { "type": "all_success", "description": "After process", "timeout_seconds": null },
+        "retry_policy": { "max_attempts": 0, "delay_seconds": 0, "exponential_backoff": false, "retry_on": [] },
+        "concurrency": { "supports_parallelism": false, "supports_dynamic_mapping": false, "map_over_param": null, "max_parallel_instances": null },
+        "connections": [{ "id": "postgres_db", "type": "database", "purpose": "DDL execution" }],
+        "datasets": { "consumes": [], "produces": ["users_table"] }
+      },
+      {
+        "id": "insert_user_data",
+        "name": "Insert User Data",
+        "category": "Loader",
+        "description": "Insert processed user fields into users table.",
+        "executor_type": "sql",
+        "executor_config": null,
+        "io_spec": [
+          { "name": "processed_user_fields", "direction": "input", "kind": "object", "format": "json", "path_pattern": null, "connection_id": null },
+          { "name": "users_table", "direction": "input", "kind": "table", "format": "sql", "path_pattern": "users", "connection_id": "postgres_db" },
+          { "name": "users_table_with_data", "direction": "output", "kind": "table", "format": "sql", "path_pattern": "users", "connection_id": "postgres_db" }
+        ],
+        "upstream_policy": { "type": "all_success", "description": "After create table", "timeout_seconds": null },
+        "retry_policy": { "max_attempts": 0, "delay_seconds": 0, "exponential_backoff": false, "retry_on": [] },
+        "concurrency": { "supports_parallelism": false, "supports_dynamic_mapping": false, "map_over_param": null, "max_parallel_instances": null },
+        "connections": [{ "id": "postgres_db", "type": "database", "purpose": "DML execution" }],
+        "datasets": { "consumes": ["user_data_processed", "users_table"], "produces": ["users_table_with_data"] }
+      }
+    ],
+    "flow_structure": {
+      "pattern": "sequential",
+      "entry_points": ["fetch_user_data"],
+      "nodes": {
+        "fetch_user_data": {
+          "kind": "Task",
+          "component_type_id": "fetch_user_data",
+          "upstream_policy": { "type": "all_success", "timeout_seconds": null },
+          "next_nodes": ["process_user_info"],
+          "branch_config": null,
+          "sensor_config": null,
+          "parallel_config": null
+        },
+        "process_user_info": {
+          "kind": "Task",
+          "component_type_id": "process_user_info",
+          "upstream_policy": { "type": "all_success", "timeout_seconds": null },
+          "next_nodes": ["create_users_table"],
+          "branch_config": null,
+          "sensor_config": null,
+          "parallel_config": null
+        },
+        "create_users_table": {
+          "kind": "Task",
+          "component_type_id": "create_users_table",
+          "upstream_policy": { "type": "all_success", "timeout_seconds": null },
+          "next_nodes": ["insert_user_data"],
+          "branch_config": null,
+          "sensor_config": null,
+          "parallel_config": null
+        },
+        "insert_user_data": {
+          "kind": "Task",
+          "component_type_id": "insert_user_data",
+          "upstream_policy": { "type": "all_success", "timeout_seconds": null },
+          "next_nodes": [],
+          "branch_config": null,
+          "sensor_config": null,
+          "parallel_config": null
+        }
+      },
+      "edges": [
+        { "from": "fetch_user_data", "to": "process_user_info", "edge_type": "success", "condition": null, "metadata": {} },
+        { "from": "process_user_info", "to": "create_users_table", "edge_type": "success", "condition": null, "metadata": {} },
+        { "from": "create_users_table", "to": "insert_user_data", "edge_type": "success", "condition": null, "metadata": {} }
+      ]
+    },
+    "parameters": {
+      "pipeline": {},
+      "schedule": {
+        "enabled": { "description": "Whether pipeline runs on schedule", "type": "boolean", "default": true, "required": false, "constraints": null, "format": null },
+        "cron_expression": { "description": "Cron expression", "type": "string", "default": "@daily", "required": false, "constraints": null, "format": null }
+      },
+      "execution": {},
+      "components": {
+        "fetch_user_data": {
+          "endpoint": { "description": "API endpoint", "type": "string", "default": "api/users/2", "required": true, "constraints": null, "format": null }
+        }
+      },
+      "environment": {
+        "AIRFLOW_CONN_REQRES": {
+          "description": "HTTP connection for reqres",
+          "type": "string",
+          "default": null,
+          "required": false,
+          "constraints": null,
+          "format": null,
+          "associated_component_id": "fetch_user_data"
+        },
+        "AIRFLOW_CONN_POSTGRES": {
+          "description": "PostgreSQL connection",
+          "type": "string",
+          "default": null,
+          "required": false,
+          "constraints": null,
+          "format": null,
+          "associated_component_id": "create_users_table"
+        }
+      }
+    },
+    "integrations": {
+      "connections": [
+        {
+          "id": "reqres_api",
+          "name": "Reqres API",
+          "type": "api",
+          "config": { "base_url": "https://reqres.in", "protocol": "https" },
+          "authentication": { "type": "none" },
+          "used_by_components": ["fetch_user_data"],
+          "direction": "input",
+          "rate_limit": null,
+          "datasets": null
+        },
+        {
+          "id": "postgres_db",
+          "name": "PostgreSQL",
+          "type": "database",
+          "config": { "protocol": "jdbc" },
+          "authentication": { "type": "none" },
+          "used_by_components": ["create_users_table", "insert_user_data"],
+          "direction": "both",
+          "rate_limit": null,
+          "datasets": null
+        }
+      ],
+      "data_lineage": {
+        "sources": ["Reqres API"],
+        "sinks": ["PostgreSQL users table"],
+        "intermediate_datasets": ["raw_user_data", "processed_user_fields"]
+      }
+    }
+  }

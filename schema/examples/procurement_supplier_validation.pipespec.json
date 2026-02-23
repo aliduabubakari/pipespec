@@ -1,0 +1,251 @@
+{
+    "pipespec_version": "1.0",
+    "metadata": {
+      "analysis_timestamp": "2025-11-28T12:32:50.695195Z",
+      "source_file": "Pipeline_Description_Dataset/Procurement_Supplier_Validation.txt",
+      "llm_provider": "deepinfra",
+      "llm_model": "Qwen3-Coder",
+      "analysis_results": {
+        "detected_patterns": ["sequential"],
+        "task_executors_used": ["docker", "http"],
+        "has_branching": false,
+        "has_parallelism": false,
+        "has_sensors": false,
+        "total_components": 3,
+        "complexity_score": "low"
+      },
+      "validation_warnings": []
+    },
+    "pipeline_summary": {
+      "name": "load_and_modify_data_pipeline",
+      "description": "Ingest supplier CSV, reconcile entities, export enriched supplier CSV.",
+      "flow_patterns": ["sequential"],
+      "task_executors": ["docker", "http"],
+      "complexity": "low"
+    },
+    "components": [
+      {
+        "id": "load_and_modify_data",
+        "name": "Load and Modify Supplier Data",
+        "category": "Extractor",
+        "description": "Ingest supplier CSV, standardize formats, convert to JSON.",
+        "executor_type": "docker",
+        "executor_config": {
+          "image": "i2t-backendwithintertwino6-load-and-modify:latest",
+          "command": null,
+          "script_path": null,
+          "entry_point": null,
+          "environment": {
+            "DATASET_ID": "2",
+            "TABLE_NAME_PREFIX": "JOT_"
+          },
+          "resources": { "cpu": "1", "memory": "2Gi", "gpu": null },
+          "network": "app_network"
+        },
+        "io_spec": [
+          {
+            "name": "input_csv",
+            "direction": "input",
+            "kind": "file",
+            "format": "csv",
+            "path_pattern": "${DATA_DIR}/suppliers.csv",
+            "connection_id": "data_dir_filesystem"
+          },
+          {
+            "name": "output_json",
+            "direction": "output",
+            "kind": "file",
+            "format": "json",
+            "path_pattern": "${DATA_DIR}/table_data_2.json",
+            "connection_id": "data_dir_filesystem"
+          }
+        ],
+        "upstream_policy": { "type": "none_failed", "description": "First task", "timeout_seconds": null },
+        "retry_policy": { "max_attempts": 1, "delay_seconds": 30, "exponential_backoff": false, "retry_on": ["timeout", "network_error"] },
+        "concurrency": { "supports_parallelism": false, "supports_dynamic_mapping": false, "map_over_param": null, "max_parallel_instances": null },
+        "connections": [
+          { "id": "data_dir_filesystem", "type": "filesystem", "purpose": "Shared data volume" },
+          { "id": "intertwino_api", "type": "api", "purpose": "Backend service" }
+        ],
+        "datasets": { "consumes": ["suppliers_raw"], "produces": ["suppliers_modified"] }
+      },
+      {
+        "id": "reconcile_wikidata_entities",
+        "name": "Reconcile Supplier Names with Wikidata",
+        "category": "Reconciliator",
+        "description": "Disambiguate supplier names using Wikidata API.",
+        "executor_type": "docker",
+        "executor_config": {
+          "image": "i2t-backendwithintertwino6-reconciliation:latest",
+          "command": null,
+          "script_path": null,
+          "entry_point": null,
+          "environment": { "PRIMARY_COLUMN": "supplier_name", "RECONCILIATOR_ID": "wikidataEntity", "DATASET_ID": "2" },
+          "resources": { "cpu": "1", "memory": "2Gi", "gpu": null },
+          "network": "app_network"
+        },
+        "io_spec": [
+          {
+            "name": "input_json",
+            "direction": "input",
+            "kind": "file",
+            "format": "json",
+            "path_pattern": "${DATA_DIR}/table_data_2.json",
+            "connection_id": "data_dir_filesystem"
+          },
+          {
+            "name": "output_reconciled_json",
+            "direction": "output",
+            "kind": "file",
+            "format": "json",
+            "path_pattern": "${DATA_DIR}/reconciled_table_2.json",
+            "connection_id": "data_dir_filesystem"
+          },
+          {
+            "name": "wikidata_api",
+            "direction": "input",
+            "kind": "api",
+            "format": "json",
+            "path_pattern": "https://www.wikidata.org/w/api.php",
+            "connection_id": "wikidata_api"
+          }
+        ],
+        "upstream_policy": { "type": "all_success", "description": "After load/modify", "timeout_seconds": null },
+        "retry_policy": { "max_attempts": 1, "delay_seconds": 30, "exponential_backoff": false, "retry_on": ["timeout", "network_error"] },
+        "concurrency": { "supports_parallelism": false, "supports_dynamic_mapping": false, "map_over_param": null, "max_parallel_instances": null },
+        "connections": [
+          { "id": "data_dir_filesystem", "type": "filesystem", "purpose": "Shared data volume" },
+          { "id": "wikidata_api", "type": "api", "purpose": "Entity reconciliation" }
+        ],
+        "datasets": { "consumes": ["suppliers_modified"], "produces": ["suppliers_reconciled"] }
+      },
+      {
+        "id": "save_final_supplier_data",
+        "name": "Save Final Supplier Data",
+        "category": "Loader",
+        "description": "Export validated supplier data to CSV format.",
+        "executor_type": "docker",
+        "executor_config": {
+          "image": "i2t-backendwithintertwino6-save:latest",
+          "command": null,
+          "script_path": null,
+          "entry_point": null,
+          "environment": { "DATASET_ID": "2" },
+          "resources": { "cpu": "1", "memory": "2Gi", "gpu": null },
+          "network": "app_network"
+        },
+        "io_spec": [
+          {
+            "name": "input_reconciled_json",
+            "direction": "input",
+            "kind": "file",
+            "format": "json",
+            "path_pattern": "${DATA_DIR}/reconciled_table_2.json",
+            "connection_id": "data_dir_filesystem"
+          },
+          {
+            "name": "output_csv",
+            "direction": "output",
+            "kind": "file",
+            "format": "csv",
+            "path_pattern": "${DATA_DIR}/enriched_data_2.csv",
+            "connection_id": "data_dir_filesystem"
+          }
+        ],
+        "upstream_policy": { "type": "all_success", "description": "After reconcile", "timeout_seconds": null },
+        "retry_policy": { "max_attempts": 1, "delay_seconds": 30, "exponential_backoff": false, "retry_on": ["timeout", "network_error"] },
+        "concurrency": { "supports_parallelism": false, "supports_dynamic_mapping": false, "map_over_param": null, "max_parallel_instances": null },
+        "connections": [
+          { "id": "data_dir_filesystem", "type": "filesystem", "purpose": "Shared data volume" },
+          { "id": "intertwino_api", "type": "api", "purpose": "Backend service" }
+        ],
+        "datasets": { "consumes": ["suppliers_reconciled"], "produces": ["suppliers_final"] }
+      }
+    ],
+    "flow_structure": {
+      "pattern": "sequential",
+      "entry_points": ["load_and_modify_data"],
+      "nodes": {
+        "load_and_modify_data": {
+          "kind": "Task",
+          "component_type_id": "load_and_modify_data",
+          "upstream_policy": { "type": "all_success", "timeout_seconds": null },
+          "next_nodes": ["reconcile_wikidata_entities"],
+          "branch_config": null,
+          "sensor_config": null,
+          "parallel_config": null
+        },
+        "reconcile_wikidata_entities": {
+          "kind": "Task",
+          "component_type_id": "reconcile_wikidata_entities",
+          "upstream_policy": { "type": "all_success", "timeout_seconds": null },
+          "next_nodes": ["save_final_supplier_data"],
+          "branch_config": null,
+          "sensor_config": null,
+          "parallel_config": null
+        },
+        "save_final_supplier_data": {
+          "kind": "Task",
+          "component_type_id": "save_final_supplier_data",
+          "upstream_policy": { "type": "all_success", "timeout_seconds": null },
+          "next_nodes": [],
+          "branch_config": null,
+          "sensor_config": null,
+          "parallel_config": null
+        }
+      },
+      "edges": [
+        { "from": "load_and_modify_data", "to": "reconcile_wikidata_entities", "edge_type": "success", "condition": null, "metadata": {} },
+        { "from": "reconcile_wikidata_entities", "to": "save_final_supplier_data", "edge_type": "success", "condition": null, "metadata": {} }
+      ]
+    },
+    "parameters": {
+      "pipeline": {},
+      "schedule": {},
+      "execution": {},
+      "components": {},
+      "environment": {}
+    },
+    "integrations": {
+      "connections": [
+        {
+          "id": "data_dir_filesystem",
+          "name": "Shared Data Directory",
+          "type": "filesystem",
+          "config": { "base_path": "${DATA_DIR}", "protocol": "file" },
+          "authentication": { "type": "none" },
+          "used_by_components": ["load_and_modify_data", "reconcile_wikidata_entities", "save_final_supplier_data"],
+          "direction": "both",
+          "rate_limit": null,
+          "datasets": null
+        },
+        {
+          "id": "intertwino_api",
+          "name": "Intertwino Backend API",
+          "type": "api",
+          "config": { "base_url": "http://intertwino-api:5005", "protocol": "http" },
+          "authentication": { "type": "none" },
+          "used_by_components": ["load_and_modify_data", "save_final_supplier_data"],
+          "direction": "both",
+          "rate_limit": null,
+          "datasets": null
+        },
+        {
+          "id": "wikidata_api",
+          "name": "Wikidata API",
+          "type": "api",
+          "config": { "base_url": "https://www.wikidata.org/w/api.php", "protocol": "https" },
+          "authentication": { "type": "none" },
+          "used_by_components": ["reconcile_wikidata_entities"],
+          "direction": "input",
+          "rate_limit": null,
+          "datasets": null
+        }
+      ],
+      "data_lineage": {
+        "sources": ["suppliers.csv", "Wikidata API"],
+        "sinks": ["enriched_data_2.csv"],
+        "intermediate_datasets": ["table_data_2.json", "reconciled_table_2.json"]
+      }
+    }
+  }

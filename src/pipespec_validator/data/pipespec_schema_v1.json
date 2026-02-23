@@ -1,0 +1,606 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://raw.githubusercontent.com/<org>/pipespec/main/schema/pipespec_schema_v1.json",
+    "title": "PipeSpec JSON Schema v1",
+    "description": "PipeSpec v1: a platform-agnostic, LLM-friendly pipeline extraction format capturing components, DAG structure, parameters, and integrations.",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+      "pipespec_version",
+      "metadata",
+      "pipeline_summary",
+      "components",
+      "flow_structure",
+      "parameters",
+      "integrations"
+    ],
+    "properties": {
+      "pipespec_version": {
+        "type": "string",
+        "const": "1.0",
+        "description": "PipeSpec schema version for this document. v1 requires '1.0'."
+      },
+      "metadata": {
+        "$ref": "#/definitions/Metadata"
+      },
+      "pipeline_summary": {
+        "$ref": "#/definitions/PipelineSummary"
+      },
+      "components": {
+        "type": "array",
+        "description": "List of pipeline components/tasks.",
+        "items": {
+          "$ref": "#/definitions/Component"
+        },
+        "minItems": 1
+      },
+      "flow_structure": {
+        "$ref": "#/definitions/FlowStructure"
+      },
+      "parameters": {
+        "$ref": "#/definitions/Parameters"
+      },
+      "integrations": {
+        "$ref": "#/definitions/Integrations"
+      },
+      "extensions": {
+        "type": "object",
+        "description": "Optional extension point for experimental or organization-specific fields. Non-normative.",
+        "additionalProperties": true
+      }
+    },
+    "definitions": {
+      "Id": {
+        "type": "string",
+        "description": "Identifier used for components, integrations, etc.",
+        "pattern": "^[A-Za-z][A-Za-z0-9_\\-]*$",
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "NullableString": {
+        "description": "A string that may be null.",
+        "anyOf": [
+          { "type": "string" },
+          { "type": "null" }
+        ]
+      },
+      "Metadata": {
+        "type": "object",
+        "description": "Provenance and extraction metadata (LLM model, timestamp, source reference).",
+        "additionalProperties": false,
+        "required": ["analysis_timestamp"],
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "description": "Deprecated. Historic field used in earlier extractions. Prefer top-level 'pipespec_version'.",
+            "examples": ["1.0"]
+          },
+          "analysis_timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Timestamp when extraction/analysis was performed (ISO 8601)."
+          },
+          "source_file": {
+            "type": "string",
+            "description": "Name or path of the input description/code file used for extraction."
+          },
+          "llm_provider": {
+            "type": "string",
+            "description": "LLM provider used for extraction (if applicable)."
+          },
+          "llm_model": {
+            "type": "string",
+            "description": "LLM model identifier used for extraction (if applicable)."
+          },
+          "analysis_results": {
+            "type": "object",
+            "description": "Optional structured summary derived during extraction.",
+            "additionalProperties": true,
+            "properties": {
+              "detected_patterns": {
+                "type": "array",
+                "items": { "$ref": "#/definitions/FlowPattern" }
+              },
+              "task_executors_used": {
+                "type": "array",
+                "items": { "$ref": "#/definitions/ExecutorType" }
+              },
+              "has_branching": { "type": "boolean" },
+              "has_parallelism": { "type": "boolean" },
+              "has_sensors": { "type": "boolean" },
+              "total_components": { "type": "integer", "minimum": 0 },
+              "complexity_score": { "$ref": "#/definitions/Complexity" }
+            }
+          },
+          "orchestrator_compatibility": {
+            "type": "object",
+            "description": "Optional compatibility judgement for common orchestrators.",
+            "additionalProperties": true
+          },
+          "validation_warnings": {
+            "type": "array",
+            "description": "Optional list of warnings generated during extraction/validation.",
+            "items": { "type": "string" }
+          },
+          "extensions": {
+            "type": "object",
+            "description": "Non-normative extension point for metadata.",
+            "additionalProperties": true
+          }
+        }
+      },
+      "Complexity": {
+        "type": "string",
+        "enum": ["low", "medium", "high"],
+        "description": "Complexity tier of the pipeline."
+      },
+      "FlowPattern": {
+        "type": "string",
+        "enum": ["sequential", "parallel", "dag", "conditional", "loop"],
+        "description": "High-level execution/topology pattern."
+      },
+      "ExecutorType": {
+        "type": "string",
+        "enum": ["python", "http", "sql", "bash", "email", "docker", "custom"],
+        "description": "High-level executor type used by a component."
+      },
+      "ComponentCategory": {
+        "type": "string",
+        "enum": [
+          "Extractor",
+          "Transformer",
+          "Loader",
+          "Reconciliator",
+          "QualityCheck",
+          "Notifier",
+          "Sensor",
+          "Custom"
+        ],
+        "description": "PipeSpec v1 component taxonomy (8 categories)."
+      },
+      "PipelineSummary": {
+        "type": "object",
+        "description": "Human-readable summary of the pipeline.",
+        "additionalProperties": false,
+        "required": ["name", "flow_patterns", "complexity"],
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "flow_patterns": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/FlowPattern" },
+            "minItems": 1
+          },
+          "task_executors": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/ExecutorType" }
+          },
+          "complexity": { "$ref": "#/definitions/Complexity" }
+        }
+      },
+      "Component": {
+        "type": "object",
+        "description": "A single pipeline component/task definition.",
+        "additionalProperties": false,
+        "required": ["id", "name", "category", "executor_type", "io_spec"],
+        "properties": {
+          "id": { "$ref": "#/definitions/Id" },
+          "name": { "type": "string" },
+          "category": { "$ref": "#/definitions/ComponentCategory" },
+          "description": { "type": "string" },
+  
+          "inputs": {
+            "type": "array",
+            "description": "Optional unstructured list of inputs (human-oriented). Normative I/O is in io_spec.",
+            "items": { "type": "string" }
+          },
+          "outputs": {
+            "type": "array",
+            "description": "Optional unstructured list of outputs (human-oriented). Normative I/O is in io_spec.",
+            "items": { "type": "string" }
+          },
+  
+          "executor_type": { "$ref": "#/definitions/ExecutorType" },
+          "executor_config": { "$ref": "#/definitions/ExecutorConfig" },
+  
+          "io_spec": {
+            "type": "array",
+            "description": "Structured input/output declarations for lineage and compilation.",
+            "items": { "$ref": "#/definitions/IOSpecItem" },
+            "minItems": 1
+          },
+  
+          "upstream_policy": { "$ref": "#/definitions/UpstreamPolicy" },
+          "retry_policy": { "$ref": "#/definitions/RetryPolicy" },
+          "concurrency": { "$ref": "#/definitions/Concurrency" },
+  
+          "connections": {
+            "type": "array",
+            "description": "Optional list of referenced integrations/connections for this component.",
+            "items": { "$ref": "#/definitions/ComponentConnectionRef" }
+          },
+  
+          "datasets": { "$ref": "#/definitions/Datasets" },
+  
+          "extensions": {
+            "type": "object",
+            "description": "Non-normative extension point for component-level data.",
+            "additionalProperties": true
+          }
+        }
+      },
+      "ExecutorConfig": {
+        "type": ["object", "null"],
+        "description": "Optional executor configuration. May be null if not specified; downstream compilation may infer defaults.",
+        "additionalProperties": false,
+        "properties": {
+          "image": { "$ref": "#/definitions/NullableString" },
+          "command": {
+            "description": "Command override (string or list).",
+            "anyOf": [
+              { "type": "string" },
+              { "type": "array", "items": { "type": "string" } },
+              { "type": "null" }
+            ]
+          },
+          "script_path": { "$ref": "#/definitions/NullableString" },
+          "entry_point": { "$ref": "#/definitions/NullableString" },
+          "environment": {
+            "type": "object",
+            "description": "Environment variables for the component (non-secret values only).",
+            "additionalProperties": { "type": "string" }
+          },
+          "resources": { "$ref": "#/definitions/ExecutorResources" },
+          "network": { "$ref": "#/definitions/NullableString" }
+        }
+      },
+      "ExecutorResources": {
+        "type": "object",
+        "description": "Optional raw resource hints extracted from the description.",
+        "additionalProperties": false,
+        "properties": {
+          "cpu": { "$ref": "#/definitions/NullableString" },
+          "memory": { "$ref": "#/definitions/NullableString" },
+          "gpu": { "$ref": "#/definitions/NullableString" }
+        }
+      },
+      "IOSpecItem": {
+        "type": "object",
+        "description": "Structured I/O specification item.",
+        "additionalProperties": false,
+        "required": ["name", "direction", "kind", "format"],
+        "properties": {
+          "name": { "$ref": "#/definitions/Id" },
+          "direction": {
+            "type": "string",
+            "enum": ["input", "output"],
+            "description": "Whether this I/O item is an input or output of the component."
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["file", "table", "api", "object", "stream"],
+            "description": "Abstract kind of data asset."
+          },
+          "format": {
+            "type": "string",
+            "description": "Data format (e.g., json, csv, parquet, sql). Free-form string in v1."
+          },
+          "path_pattern": {
+            "description": "URI/path/pattern. Can be null if not applicable (e.g., in-memory object).",
+            "anyOf": [{ "type": "string" }, { "type": "null" }]
+          },
+          "connection_id": {
+            "description": "Optional reference to an integrations.connections[].id entry.",
+            "anyOf": [{ "$ref": "#/definitions/Id" }, { "type": "null" }]
+          }
+        }
+      },
+      "UpstreamPolicy": {
+        "type": "object",
+        "description": "Conditions determining whether a component runs given upstream outcomes.",
+        "additionalProperties": false,
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["all_success", "none_failed", "one_success", "all_done"],
+            "description": "Upstream gating policy."
+          },
+          "description": { "type": "string" },
+          "timeout_seconds": {
+            "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }]
+          }
+        }
+      },
+      "RetryPolicy": {
+        "type": "object",
+        "description": "Component retry behaviour.",
+        "additionalProperties": false,
+        "required": ["max_attempts", "delay_seconds", "exponential_backoff", "retry_on"],
+        "properties": {
+          "max_attempts": { "type": "integer", "minimum": 0 },
+          "delay_seconds": { "type": "integer", "minimum": 0 },
+          "exponential_backoff": { "type": "boolean" },
+          "retry_on": {
+            "type": "array",
+            "description": "List of error classes/conditions triggering retry (free-form strings).",
+            "items": { "type": "string" }
+          }
+        }
+      },
+      "Concurrency": {
+        "type": "object",
+        "description": "Concurrency and mapping metadata.",
+        "additionalProperties": false,
+        "required": ["supports_parallelism", "supports_dynamic_mapping"],
+        "properties": {
+          "supports_parallelism": { "type": "boolean" },
+          "supports_dynamic_mapping": { "type": "boolean" },
+          "map_over_param": { "$ref": "#/definitions/NullableString" },
+          "max_parallel_instances": {
+            "anyOf": [{ "type": "integer", "minimum": 1 }, { "type": "null" }]
+          }
+        }
+      },
+      "ComponentConnectionRef": {
+        "type": "object",
+        "description": "Lightweight per-component connection reference.",
+        "additionalProperties": false,
+        "required": ["id", "type"],
+        "properties": {
+          "id": { "$ref": "#/definitions/Id" },
+          "type": {
+            "type": "string",
+            "enum": [
+              "api",
+              "database",
+              "filesystem",
+              "object_store",
+              "message_queue",
+              "smtp",
+              "other"
+            ]
+          },
+          "purpose": { "type": "string" }
+        }
+      },
+      "Datasets": {
+        "type": "object",
+        "description": "Optional dataset-level consumes/produces labels for coarse lineage.",
+        "additionalProperties": false,
+        "required": ["consumes", "produces"],
+        "properties": {
+          "consumes": { "type": "array", "items": { "type": "string" } },
+          "produces": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "FlowStructure": {
+        "type": "object",
+        "description": "Pipeline topology representation.",
+        "additionalProperties": false,
+        "required": ["pattern", "entry_points", "nodes", "edges"],
+        "properties": {
+          "pattern": { "$ref": "#/definitions/FlowPattern" },
+          "entry_points": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/Id" },
+            "minItems": 1
+          },
+          "nodes": {
+            "type": "object",
+            "description": "Map of node_id -> node definition (node_id should match a component id for Task nodes).",
+            "additionalProperties": { "$ref": "#/definitions/FlowNode" }
+          },
+          "edges": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/FlowEdge" }
+          }
+        }
+      },
+      "FlowNode": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "component_type_id", "upstream_policy", "next_nodes"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": ["Task", "Group", "Branch", "Sensor", "ParallelGroup"],
+            "description": "Node kind. In v1 most nodes are Task."
+          },
+          "component_type_id": { "$ref": "#/definitions/Id" },
+          "upstream_policy": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["all_success", "none_failed", "one_success", "all_done"]
+              },
+              "timeout_seconds": {
+                "anyOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }]
+              }
+            }
+          },
+          "next_nodes": { "type": "array", "items": { "$ref": "#/definitions/Id" } },
+          "branch_config": { "type": ["object", "null"], "additionalProperties": true },
+          "sensor_config": { "type": ["object", "null"], "additionalProperties": true },
+          "parallel_config": { "type": ["object", "null"], "additionalProperties": true }
+        }
+      },
+      "FlowEdge": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from", "to", "edge_type"],
+        "properties": {
+          "from": { "$ref": "#/definitions/Id" },
+          "to": { "$ref": "#/definitions/Id" },
+          "edge_type": {
+            "type": "string",
+            "enum": ["success", "failure", "always", "conditional"],
+            "description": "Edge semantics. 'conditional' may include a 'condition' string."
+          },
+          "condition": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "metadata": { "type": "object", "additionalProperties": true }
+        }
+      },
+      "Parameters": {
+        "type": "object",
+        "description": "Pipeline parameters and environment/secret manifests (symbolic only).",
+        "additionalProperties": false,
+        "required": ["pipeline", "schedule", "execution", "components", "environment"],
+        "properties": {
+          "pipeline": { "$ref": "#/definitions/ParameterGroup" },
+          "schedule": { "$ref": "#/definitions/ParameterGroup" },
+          "execution": { "$ref": "#/definitions/ParameterGroup" },
+          "components": {
+            "type": "object",
+            "description": "Map of component_id -> parameter group for that component.",
+            "additionalProperties": { "$ref": "#/definitions/ParameterGroup" }
+          },
+          "environment": {
+            "type": "object",
+            "description": "Environment-level parameters. Secrets should have default null and required=true where applicable.",
+            "additionalProperties": { "$ref": "#/definitions/EnvironmentParameterSpec" }
+          }
+        }
+      },
+      "ParameterGroup": {
+        "type": "object",
+        "description": "Map of parameter_name -> parameter spec.",
+        "additionalProperties": { "$ref": "#/definitions/ParameterSpec" }
+      },
+      "ParameterSpec": {
+        "type": "object",
+        "description": "A single parameter specification (LLM extracted).",
+        "additionalProperties": false,
+        "required": ["description", "type", "default", "required"],
+        "properties": {
+          "description": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": ["string", "integer", "float", "boolean", "array", "object", "datetime"],
+            "description": "Nominal parameter type."
+          },
+          "default": {
+            "description": "Default value (may be null).",
+            "anyOf": [
+              { "type": "null" },
+              { "type": "string" },
+              { "type": "number" },
+              { "type": "integer" },
+              { "type": "boolean" },
+              { "type": "array" },
+              { "type": "object" }
+            ]
+          },
+          "required": { "type": "boolean" },
+          "constraints": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+          "format": { "anyOf": [{ "type": "string" }, { "type": "null" }] }
+        }
+      },
+      "EnvironmentParameterSpec": {
+        "type": "object",
+        "description": "Environment-level parameter spec. Same as ParameterSpec, with optional associated_component_id indicating which component most directly uses it.",
+        "additionalProperties": false,
+        "required": ["description", "type", "default", "required"],
+        "properties": {
+            "description": { "type": "string" },
+            "type": {
+            "type": "string",
+            "enum": ["string", "integer", "float", "boolean", "array", "object", "datetime"],
+            "description": "Nominal parameter type."
+            },
+            "default": {
+            "description": "Default value (may be null). Secrets should generally use null.",
+            "anyOf": [
+                { "type": "null" },
+                { "type": "string" },
+                { "type": "number" },
+                { "type": "integer" },
+                { "type": "boolean" },
+                { "type": "array" },
+                { "type": "object" }
+            ]
+            },
+            "required": { "type": "boolean" },
+            "constraints": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "format": { "anyOf": [{ "type": "string" }, { "type": "null" }] },
+            "associated_component_id": {
+            "description": "Optional component id that primarily uses this environment parameter.",
+            "anyOf": [{ "$ref": "#/definitions/Id" }, { "type": "null" }]
+            }
+        }
+        },
+      "Integrations": {
+        "type": "object",
+        "description": "Catalogue of external system connections and high-level lineage info.",
+        "additionalProperties": false,
+        "required": ["connections", "data_lineage"],
+        "properties": {
+          "connections": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/IntegrationConnection" }
+          },
+          "data_lineage": { "$ref": "#/definitions/DataLineage" }
+        }
+      },
+      "IntegrationConnection": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "type", "config", "authentication", "used_by_components", "direction"],
+        "properties": {
+          "id": { "$ref": "#/definitions/Id" },
+          "name": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": [
+              "api",
+              "database",
+              "filesystem",
+              "object_store",
+              "message_queue",
+              "smtp",
+              "other"
+            ]
+          },
+          "config": {
+            "type": "object",
+            "description": "Connection configuration fields. Free-form in v1 (varies by type).",
+            "additionalProperties": true
+          },
+          "authentication": {
+            "type": "object",
+            "description": "Authentication configuration. Free-form in v1 (varies by type).",
+            "additionalProperties": true
+          },
+          "used_by_components": {
+            "type": "array",
+            "items": { "$ref": "#/definitions/Id" }
+          },
+          "direction": {
+            "type": "string",
+            "enum": ["input", "output", "both"]
+          },
+          "rate_limit": {
+            "type": ["object", "null"],
+            "additionalProperties": true
+          },
+          "datasets": {
+            "type": ["object", "null"],
+            "additionalProperties": true
+          }
+        }
+      },
+      "DataLineage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sources", "sinks", "intermediate_datasets"],
+        "properties": {
+          "sources": { "type": "array", "items": { "type": "string" } },
+          "sinks": { "type": "array", "items": { "type": "string" } },
+          "intermediate_datasets": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }

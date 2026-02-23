@@ -1,0 +1,31 @@
+{
+    "metadata": {
+      "analysis_timestamp": "2025-11-28T00:00:00Z"
+    },
+    "pipeline_summary": {
+      "name": "broken_pipeline",
+      "flow_patterns": ["sequential"],
+      "complexity": "low"
+    },
+    "flow_structure": {
+      "pattern": "sequential",
+      "entry_points": [],
+      "nodes": {},
+      "edges": []
+    },
+    "parameters": {
+      "pipeline": {},
+      "schedule": {},
+      "execution": {},
+      "components": {},
+      "environment": {}
+    },
+    "integrations": {
+      "connections": [],
+      "data_lineage": {
+        "sources": [],
+        "sinks": [],
+        "intermediate_datasets": []
+      }
+    }
+  }

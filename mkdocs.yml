@@ -1,0 +1,23 @@
+site_name: PipeSpec v1
+repo_url: https://github.com/<org>/pipespec
+
+theme:
+  name: material
+  features:
+    - navigation.tabs
+    - navigation.indexes
+    - content.code.copy
+
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - Schema:
+      - Overview: schema/overview.md
+      - Field reference: schema/field-reference.md
+      - Taxonomy: schema/taxonomy.md
+      - Versioning: schema/versioning.md
+      - Design rationale: schema/design-rationale.md
+  - Tooling:
+      - pipespec-validate CLI: tooling/pipespec-validate.md
+      - Python API: tooling/python-api.md
+  - Contributing: contributing.md

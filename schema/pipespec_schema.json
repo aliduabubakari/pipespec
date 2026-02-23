@@ -1,0 +1,7 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://raw.githubusercontent.com/<org>/pipespec/main/schema/pipespec_schema.json",
+    "title": "PipeSpec JSON Schema (latest)",
+    "description": "Alias schema that references the latest stable PipeSpec schema version.",
+    "$ref": "./pipespec_schema_v1.json"
+  }

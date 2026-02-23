@@ -1,0 +1,58 @@
+{
+    "pipespec_version": "1.0",
+    "metadata": { "analysis_timestamp": "2025-11-28T00:00:00Z" },
+    "pipeline_summary": {
+      "name": "wrong_enum_pipeline",
+      "description": "Has a category that is not in the v1 taxonomy.",
+      "flow_patterns": ["sequential"],
+      "task_executors": ["python"],
+      "complexity": "low"
+    },
+    "components": [
+      {
+        "id": "t1",
+        "name": "Bad Category Task",
+        "category": "SQLTransform",
+        "description": "This should fail schema validation.",
+        "executor_type": "python",
+        "executor_config": null,
+        "io_spec": [
+          {
+            "name": "x",
+            "direction": "output",
+            "kind": "object",
+            "format": "json",
+            "path_pattern": null,
+            "connection_id": null
+          }
+        ],
+        "upstream_policy": { "type": "none_failed", "description": "First task", "timeout_seconds": null },
+        "retry_policy": { "max_attempts": 0, "delay_seconds": 0, "exponential_backoff": false, "retry_on": [] },
+        "concurrency": { "supports_parallelism": false, "supports_dynamic_mapping": false, "map_over_param": null, "max_parallel_instances": null },
+        "connections": [],
+        "datasets": { "consumes": [], "produces": [] }
+      }
+    ],
+    "flow_structure": {
+      "pattern": "sequential",
+      "entry_points": ["t1"],
+      "nodes": {
+        "t1": {
+          "kind": "Task",
+          "component_type_id": "t1",
+          "upstream_policy": { "type": "all_success", "timeout_seconds": null },
+          "next_nodes": [],
+          "branch_config": null,
+          "sensor_config": null,
+          "parallel_config": null
+        }
+      },
+      "edges": []
+    },
+    "parameters": { "pipeline": {}, "schedule": {}, "execution": {}, "components": {}, "environment": {} },
+    "integrations": {
+      "connections": [],
+      "data_lineage": { "sources": [], "sinks": [], "intermediate_datasets": [] }
+    }
+  }
+  

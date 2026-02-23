@@ -1,0 +1,1 @@
+# Package data module (bundled schema lives here).
