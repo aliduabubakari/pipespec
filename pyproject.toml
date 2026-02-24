@@ -59,6 +59,9 @@ dev = [
   "mkdocs-material>=9.5.0",
 ]
 
+[project.optional-dependencies]
+llm = ["openai>=1.0.0"]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"
