@@ -2,11 +2,13 @@
 
 PipeSpec is a platform-agnostic, LLM-friendly extraction format for describing data pipelines as structured documents.
 
+![PipeSpec overview](docs/assets/image.png)
+
 This repository contains:
 
 - The **canonical PipeSpec v1 JSON Schema**: `schema/pipespec_schema_v1.json`
 - Example PipeSpec documents: `schema/examples/`
-- A Python package + CLI (`pipespec-validator`) to validate PipeSpec documents
+- A Python package + CLI (`pipespec`) to generate/validate/correct PipeSpec documents
 
 ## Status
 
@@ -111,7 +113,13 @@ This approach maintains a clean contract:
 - **Explicit non-normative labeling**
 - **Stable packaging** for programmatic access
 
-## Install validator
+## Install (git)
+
+```bash
+python -m pip install "git+https://github.com/<org>/pipespec.git"
+```
+
+## Install validator only
 
 ```bash
 python -m pip install pipespec-validator
@@ -128,13 +136,66 @@ python -m pip install -e ".[dev]"
 Validate JSON:
 
 ```bash
-pipespec-validate schema/examples/airvisual_pipeline.pipespec.json --semantic
+pipespec validate schema/examples/airvisual_pipeline.pipespec.json --semantic
 ```
 
 Validate YAML (tooling convenience):
 
 ```bash
+pipespec validate path/to/pipeline.pipespec.yaml --semantic
+```
+
+Legacy command (still supported):
+
+```bash
 pipespec-validate path/to/pipeline.pipespec.yaml --semantic
+```
+
+## Generate a PipeSpec from description text
+
+```bash
+pipespec generate \
+  --in Pipeline_Description_Dataset/sample.txt \
+  --out /tmp/pipeline.pipespec.json \
+  --provider openai \
+  --model gpt-4o-mini \
+  --api-key-env OPENAI_API_KEY
+```
+
+Supported providers:
+- `openai`
+- `claude` (Anthropic)
+- `deepinfra`
+- `deepseek`
+- `openrouter`
+- `ollama`
+- `openai_compatible`
+
+Check runtime provider defaults and credential detection:
+
+```bash
+pipespec providers
+pipespec providers --provider openai
+pipespec providers --json
+```
+
+## Correct an existing PipeSpec
+
+Deterministic structural correction only:
+
+```bash
+pipespec correct --in broken.pipespec.yaml --out fixed.pipespec.yaml
+```
+
+LLM-assisted correction (uses original description):
+
+```bash
+pipespec correct \
+  --in broken.pipespec.yaml \
+  --out repaired.pipespec.yaml \
+  --description Pipeline_Description_Dataset/sample.txt \
+  --provider claude \
+  --api-key-env ANTHROPIC_API_KEY
 ```
 
 Exit codes:

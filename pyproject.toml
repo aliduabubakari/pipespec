@@ -35,6 +35,7 @@ Repository = "https://github.com/<org>/pipespec"
 Issues = "https://github.com/<org>/pipespec/issues"
 
 [project.scripts]
+pipespec = "pipespec_validator.cli_root:main"
 pipespec-validate = "pipespec_validator.cli:main"
 
 [tool.hatch.build.targets.wheel]
@@ -60,7 +61,7 @@ dev = [
 ]
 
 [project.optional-dependencies]
-llm = ["openai>=1.0.0"]
+llm = ["openai>=1.0.0", "anthropic>=0.40.0"]
 
 [tool.ruff]
 line-length = 100

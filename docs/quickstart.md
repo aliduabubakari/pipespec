@@ -3,7 +3,7 @@
 ## Validate a PipeSpec document
 
 ```bash
-pipespec-validate schema/examples/airvisual_pipeline.pipespec.json --semantic
+pipespec validate schema/examples/airvisual_pipeline.pipespec.json --semantic
 ```
 
 ## YAML input (tooling convenience)
@@ -11,7 +11,7 @@ pipespec-validate schema/examples/airvisual_pipeline.pipespec.json --semantic
 PipeSpec v1 is formally JSON, but the validator also accepts YAML input:
 
 ```bash
-pipespec-validate pipeline.pipespec.yaml --semantic
+pipespec validate pipeline.pipespec.yaml --semantic
 ```
 
 ## Validate all repository examples

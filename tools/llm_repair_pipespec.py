@@ -158,10 +158,10 @@ def _schema_enum_summary() -> str:
         - component.category: one of {VALID_CATEGORIES}
         - component.executor_type: one of {VALID_EXECUTOR_TYPES}
         - flow_structure.pattern: one of [sequential, parallel, dag, conditional, loop]
-        - node.kind: one of [Task, Branch, Sensor, SubPipeline]
+        - node.kind: one of [Task, Group, Branch, Sensor, ParallelGroup]
         - edge.edge_type: one of [success, failure, always, conditional]
         - io_spec[].direction: one of [input, output]
-        - io_spec[].kind: one of [file, table, stream, api, message_queue, custom]
+        - io_spec[].kind: one of [file, table, api, object, stream]
     """).strip()
 
 

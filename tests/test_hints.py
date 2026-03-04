@@ -92,7 +92,7 @@ class TestMissingRequiredHints:
         hints = generate_hints(POST_AUTOFIX_ERRORS)
         summary = escalation_summary(hints)
         assert "LLM escalation" in summary
-        assert "llm_repair_pipespec.py" in summary
+        assert "pipespec correct" in summary
 
 
 # ---------------------------------------------------------------------------

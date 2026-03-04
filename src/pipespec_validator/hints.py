@@ -97,8 +97,8 @@ def _hints_missing_required(errors: list[ValidationErrorItem]) -> list[Hint]:
             severity: HintSeverity = "high"
             suggested_action = (
                 "These fields require domain knowledge from the original pipeline description. "
-                "Use the LLM escalation tool (tools/llm_repair_pipespec.py) with "
-                "--description to fill them in."
+                "Use `pipespec correct --description <pipeline.txt> --in <spec> --out <fixed_spec>` "
+                "to fill them in."
             )
         elif needs_structure:
             tier = "structural"
@@ -409,7 +409,6 @@ def escalation_summary(hints: list[Hint]) -> str:
     if len(content_hints) > 5:
         lines.append(f"    ... and {len(content_hints) - 5} more (see --report for full list)")
     lines.append(
-        "  → Run: tools/llm_repair_pipespec.py --description <desc.txt> "
-        "--pipespec <file> --report <report.json>"
+        "  → Run: pipespec correct --description <desc.txt> --in <file> --out <fixed_file>"
     )
     return "\n".join(lines)
