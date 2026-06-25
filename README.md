@@ -198,6 +198,19 @@ pipespec correct \
   --api-key-env ANTHROPIC_API_KEY
 ```
 
+## Compare two PipeSpecs semantically
+
+```bash
+pipespec diff --left run_a.pipespec.yaml --right run_b.pipespec.yaml
+pipespec diff --left run_a.pipespec.yaml --right run_b.pipespec.yaml --json
+```
+
+Standalone script alias:
+
+```bash
+pipespec-diff --left run_a.pipespec.yaml --right run_b.pipespec.yaml --json
+```
+
 Exit codes:
 
 - `0` = valid

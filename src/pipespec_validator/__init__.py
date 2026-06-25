@@ -11,6 +11,18 @@ from .corrections import (
     autofix_file,
     MAX_ROUNDS,
 )
+from .elicitation import (
+    AuthorityDecision,
+    AuthorityPolicy,
+    CoverageMatrix,
+    CoverageSlot,
+    DataProfile,
+    ElicitationSession,
+    build_coverage_matrix,
+    plan_questions,
+    profile_data_paths,
+    summarize_profiles,
+)
 
 __all__ = [
     # Core validation
@@ -40,4 +52,15 @@ __all__ = [
     "autofix_multi_round",
     "autofix_file",
     "MAX_ROUNDS",
+    # Elicitation
+    "AuthorityDecision",
+    "AuthorityPolicy",
+    "CoverageMatrix",
+    "CoverageSlot",
+    "DataProfile",
+    "ElicitationSession",
+    "build_coverage_matrix",
+    "plan_questions",
+    "profile_data_paths",
+    "summarize_profiles",
 ]

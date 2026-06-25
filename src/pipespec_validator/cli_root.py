@@ -10,6 +10,8 @@ from rich.table import Table
 
 from .cli import cli as validate_cli
 from .correct_llm import correct_command
+from .diffing import diff_command
+from .elicitation.cli import elicit_command
 from .generate import generate_command
 from .llm_runtime import (
     default_base_url_for_provider,
@@ -57,7 +59,9 @@ def validate_command(
 
 
 app.command("generate")(generate_command)
+app.command("elicit")(elicit_command)
 app.command("correct")(correct_command)
+app.command("diff")(diff_command)
 
 
 @app.command("providers")

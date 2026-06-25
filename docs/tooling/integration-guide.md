@@ -42,6 +42,15 @@ pipespec correct \
   --api-key-env ANTHROPIC_API_KEY
 ```
 
+## Diff
+
+Compare two specs semantically (useful for auditing different extraction runs):
+
+```bash
+pipespec diff --left /tmp/sample_run_a.yaml --right /tmp/sample_run_b.yaml
+pipespec diff --left /tmp/sample_run_a.yaml --right /tmp/sample_run_b.yaml --json
+```
+
 ## Provider credentials
 
 - `openai`: `OPENAI_API_KEY`

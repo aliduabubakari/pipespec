@@ -37,6 +37,7 @@ Issues = "https://github.com/<org>/pipespec/issues"
 [project.scripts]
 pipespec = "pipespec_validator.cli_root:main"
 pipespec-validate = "pipespec_validator.cli:main"
+pipespec-diff = "pipespec_validator.diffing:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pipespec_validator"]
