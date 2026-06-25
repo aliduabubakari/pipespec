@@ -26,3 +26,6 @@ site/
 
 # uv
 uv.lockPipeline_Description_Dataset/
+
+# Environment and secrets
+.env

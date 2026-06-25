@@ -15,84 +15,173 @@ console = Console()
 
 
 def _compact_error_feedback(errors, max_items: int = 30) -> str:
-    lines: list[str] = []
+    """Group errors by JSON path prefix for clearer feedback."""
+    from collections import defaultdict
+    groups: dict[str, list[str]] = defaultdict(list)
     for e in errors[:max_items]:
         path = e.instance_path or "(root)"
-        lines.append(f"- {path}: {e.message}")
+        section = path.split("/")[1] if path.startswith("/") else path
+        groups[section].append(f"  - {path}: {e.message}")
+
+    lines: list[str] = []
+    for section in sorted(groups.keys()):
+        msgs = groups[section]
+        lines.append(f"[{section}] ({len(msgs)} issues):")
+        lines.extend(msgs[:6])
+        if len(msgs) > 6:
+            lines.append(f"  ... plus {len(msgs) - 6} more in [{section}]")
+
     if len(errors) > max_items:
-        lines.append(f"... plus {len(errors) - max_items} more errors")
+        lines.append(f"... plus {len(errors) - max_items} more errors total")
     return "\n".join(lines)
+
+
+def _repair_feedback(errors) -> str:
+    """Build repair feedback with specific fix hints for common errors."""
+    base = _compact_error_feedback(errors, max_items=40)
+    error_text = " ".join(f"{e.instance_path}:{e.message}" for e in errors)
+    hints = []
+    if "'from' is a required property" in error_text or "'source'" in error_text:
+        hints.append("- Edge objects need 'from' and 'to' (NOT 'source'/'target')")
+    if "io_spec" in error_text and "non-empty" in error_text:
+        hints.append("- Every component needs at least one io_spec entry with name/direction/kind/format")
+    if "component_type_id" in error_text:
+        hints.append("- flow_structure.nodes[key] needs 'component_type_id' matching the component's 'id'")
+    if "upstream_policy" in error_text and "'type'" in error_text:
+        hints.append('- upstream_policy needs {"type": "all_success"}')
+    if "parameters" in error_text and "execution" in error_text:
+        hints.append("- parameters.execution should be {} or have properly structured parameter specs. Do NOT put pipeline metadata there.")
+    if "schedule" in error_text and "type" in error_text:
+        hints.append("- parameters.schedule entries MUST have: description, type, default, required")
+    if hints:
+        return base + "\n\nFIX HINTS:\n" + "\n".join(hints)
+    return base
 
 
 def build_system_prompt() -> str:
     return (
         "You are a pipeline extraction engine.\n"
-        "You MUST output a PipeSpec v1 JSON document.\n"
+        "You MUST output a single valid PipeSpec v1 JSON object.\n"
+        "Do NOT output markdown, code fences, or extra commentary.\n"
         "\n"
-        "Hard rules:\n"
-        "- Output MUST be a single valid JSON object.\n"
-        "- Output MUST conform to PipeSpec v1 structure.\n"
-        "- Do NOT output markdown, code fences, or extra commentary.\n"
-        "- Do NOT invent unknown details; use null or empty arrays/objects.\n"
+        "=== VALID ENUM VALUES ===\n"
+        "flow_patterns / pattern: sequential, parallel, dag, conditional, loop\n"
+        "  Map: linear->sequential, branch_merge->dag, event_driven->dag\n"
+        "executor_type / task_executors: python, http, sql, bash, email, docker, custom\n"
+        "  Map: python_callable->python, shell_command->bash, sql_query->sql,\n"
+        "       wait_poll->http, unknown->custom\n"
+        "component category: Extractor, Transformer, Loader, Reconciliator,\n"
+        "  QualityCheck, Notifier, Sensor, Custom\n"
+        "io_spec direction: input, output\n"
+        "io_spec kind: file, table, api, object, stream\n"
+        "edge_type: success, failure, always, conditional\n"
+        "complexity: low, medium, high\n"
+        "parameter type: string, integer, float, boolean, array, object, datetime\n"
+        "integration type: api, database, filesystem, object_store, message_queue, smtp, other\n"
+        "upstream_policy type: all_success, none_failed, one_success, all_done\n"
+        "schedule type: manual means no cron, cron means include cron expression\n"
         "\n"
-        "Critical structure rules:\n"
-        "- components MUST be an array of component objects (NOT an object/map).\n"
-        "- flow_structure.nodes MUST be an object/map keyed by node id (NOT an array).\n"
-        "- integrations MUST contain keys: connections (array) and data_lineage (object).\n"
+        "=== CRITICAL STRUCTURE RULES ===\n"
+        "- components is an ARRAY of objects, each with id/name/category/executor_type/io_spec.\n"
+        "- flow_structure.nodes is an OBJECT keyed by component id (NOT an array).\n"
+        "  Each node MUST have: kind, component_type_id, upstream_policy, next_nodes.\n"
+        "  kind is always 'Task' unless specified otherwise.\n"
+        "  component_type_id equals the component's id.\n"
+        "  upstream_policy is {\"type\": \"all_success\"} unless specified.\n"
+        "- flow_structure.edges is an ARRAY of {from, to, edge_type}.\n"
+        "  Use 'from' and 'to' (NOT 'source'/'target').\n"
+        "- io_spec is a non-empty ARRAY per component with name/direction/kind/format.\n"
+        "  Every component MUST have at least one io_spec entry.\n"
+        "- parameters has 5 fixed sections: pipeline, schedule, execution, components, environment.\n"
+        "  Each parameter within MUST have: description, type, default, required.\n"
+        "  Do NOT put pipeline metadata (model, topology) in parameters.execution.\n"
+        "- integrations has 2 fixed keys: connections (array) and data_lineage (object).\n"
+        "  data_lineage has sources, sinks, intermediate_datasets (all arrays of strings).\n"
+        "- retry_policy fields: max_attempts (int), delay_seconds (int),\n"
+        "  exponential_backoff (bool), retry_on (array of strings).\n"
+        "\n"
+        "=== COMMON MISTAKES TO AVOID ===\n"
+        "- Do NOT use 'source'/'target' for edges. Use 'from'/'to'.\n"
+        "- Do NOT put executor types in parameters. Put them in components.executor_type.\n"
+        "- Do NOT leave io_spec empty. Every component processes data.\n"
+        "- Do NOT invent pipeline parameters (model, topology, type).\n"
+        "  Only extract parameters explicitly mentioned in the description.\n"
+        "- flow_structure.entry_points must reference valid component ids.\n"
     )
 
 
 def build_user_prompt(description_text: str, provider: str, model: str) -> str:
-    skeleton = {
+    example = {
         "pipespec_version": "1.0",
         "metadata": {
             "analysis_timestamp": "2026-01-01T00:00:00Z",
             "source_file": None,
             "llm_provider": provider,
             "llm_model": model,
-            "schema_version": "1.0",
         },
         "pipeline_summary": {
-            "name": "",
-            "description": "",
+            "name": "example_pipeline",
+            "description": "A simple ETL pipeline",
             "flow_patterns": ["sequential"],
-            "task_executors": [],
+            "task_executors": ["python"],
             "complexity": "low",
         },
-        "components": [],
+        "components": [{
+            "id": "extract_data",
+            "name": "Extract Data",
+            "category": "Extractor",
+            "description": "Fetch data from API",
+            "executor_type": "python",
+            "io_spec": [{
+                "name": "raw_data",
+                "direction": "output",
+                "kind": "api",
+                "format": "json"
+            }]
+        }],
         "flow_structure": {
             "pattern": "sequential",
-            "entry_points": [],
-            "nodes": {},
-            "edges": [],
+            "entry_points": ["extract_data"],
+            "nodes": {
+                "extract_data": {
+                    "kind": "Task",
+                    "component_type_id": "extract_data",
+                    "upstream_policy": {"type": "all_success"},
+                    "next_nodes": []
+                }
+            },
+            "edges": []
         },
         "parameters": {
             "pipeline": {},
             "schedule": {},
             "execution": {},
             "components": {},
-            "environment": {},
+            "environment": {}
         },
         "integrations": {
             "connections": [],
             "data_lineage": {
                 "sources": [],
                 "sinks": [],
-                "intermediate_datasets": [],
-            },
-        },
+                "intermediate_datasets": []
+            }
+        }
     }
-
     return (
-        "Extract a PipeSpec v1 JSON document from this pipeline description.\n"
-        "Use the skeleton below as a SHAPE TEMPLATE.\n"
-        "You must keep data types and required keys.\n"
-        "Replace placeholder values with real values from the description.\n"
-        "Return ONLY the JSON object.\n\n"
-        "PIPELINE DESCRIPTION:\n"
-        f"{description_text}\n\n"
-        "SKELETON SHAPE TEMPLATE:\n"
-        f"{json.dumps(skeleton, indent=2)}\n"
+        f"Extract a PipeSpec v1 JSON document from this description.\n\n"
+        f"DESCRIPTION:\n{description_text}\n\n"
+        f"Follow this EXACT structure (change values, keep field names):\n"
+        f"{json.dumps(example, indent=2)}\n\n"
+        f"RULES:\n"
+        f"- Create one component per 'performs' sentence.\n"
+        f"- Extract dependencies from arrows (A->B).\n"
+        f"- Map mechanism names to executor_type via the enum table.\n"
+        f"- Every component MUST have a non-empty io_spec array.\n"
+        f"- flow_structure.nodes is an OBJECT keyed by component id.\n"
+        f"- parameters sections are OBJECTS (pipeline/schedule/execution=empty {{}} unless specified).\n"
+        f"- Do NOT add extra top-level keys beyond what the example shows.\n"
+        f"- Return ONLY the JSON object.\n"
     )
 
 
@@ -110,13 +199,21 @@ def generate_with_repair(
     feedback = ""
     last_error_summary = "unknown error"
 
-    for _ in range(attempts):
+    for attempt_num in range(attempts):
+        # Temperature annealing: start cold, warm up for repairs
+        if attempt_num == 0:
+            current_temp = min(temperature, 0.05)
+        elif attempt_num == 1:
+            current_temp = min(temperature, 0.15)
+        else:
+            current_temp = min(temperature + 0.1, 0.4)
+
         content = call_llm_json(
             config=llm_config,
             system_prompt=system_prompt,
             user_prompt=user_prompt + feedback,
             max_tokens=max_tokens,
-            temperature=temperature,
+            temperature=current_temp,
         )
 
         try:
@@ -126,7 +223,7 @@ def generate_with_repair(
             feedback = (
                 "\n\nYour previous output was not valid JSON.\n"
                 f"JSON parse error: {e}\n"
-                "Return ONLY a valid JSON object.\n"
+                "Return ONLY a valid JSON object. No markdown.\n"
             )
             continue
 
@@ -134,15 +231,15 @@ def generate_with_repair(
         if result.ok:
             return doc
 
-        err_feedback = _compact_error_feedback(result.errors, max_items=30)
-        last_error_summary = f"{len(result.errors)} schema error(s). First few:\n{err_feedback}"
-        feedback = (
-            "\n\nThe previous JSON does not conform to the PipeSpec schema.\n"
-            "Fix ONLY what is necessary to satisfy the schema.\n"
-            "Preserve correct information.\n"
-            "Return ONLY the corrected JSON object.\n\n"
-            f"Schema errors:\n{err_feedback}\n"
-        )
+        err_feedback = _repair_feedback(result.errors)
+        last_error_summary = f"{len(result.errors)} schema error(s)"
+        if attempt_num < attempts - 1:
+            feedback = (
+                "\n\nThe previous JSON has schema errors.\n"
+                "Fix ONLY the errors listed below. Preserve correct data.\n"
+                "Return ONLY the corrected JSON object.\n\n"
+                f"ERRORS:\n{err_feedback}\n"
+            )
 
     raise RuntimeError(
         f"Failed to produce valid PipeSpec after {attempts} attempts. "
