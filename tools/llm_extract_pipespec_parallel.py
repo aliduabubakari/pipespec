@@ -122,14 +122,15 @@ Hard rules:
 _ENUM_HINTS = """\
 Enum reference (use ONLY these values):
   executor_type       : python | http | sql | bash | email | docker | custom
-  category            : Extractor | Transformer | Loader | Reconciliator | QualityCheck | Notifier | Sensor | Custom
+  category            : Extractor | Transformer | Loader | Reconciliator | QualityCheck | FeatureEngineering | ModelTraining | ModelEvaluation | ModelInference | Notifier | Sensor | Custom
   flow_pattern/pattern: sequential | parallel | dag | conditional | loop
   edge_type           : success | failure | always | conditional
   node.kind           : Task | Group | Branch | Sensor | ParallelGroup
   upstream_policy.type: all_success | none_failed | one_success | all_done
   complexity          : low | medium | high
   io direction        : input | output
-  io kind             : file | table | api | object | stream
+  io kind             : file | table | api | object | stream | features | model | metrics | predictions | embedding
+  ML formats          : pickle | pkl | joblib | onnx | pmml | mlflow | skops | npy | npz
 """
 
 
