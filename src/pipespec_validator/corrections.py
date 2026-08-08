@@ -124,6 +124,25 @@ _CATEGORY_MAPPING: dict[str, str] = {
     "sqltransform": "Transformer",
     "Enricher": "Transformer",
     "enricher": "Transformer",
+    "FeatureEngineer": "FeatureEngineering",
+    "feature_engineer": "FeatureEngineering",
+    "feature_engineering": "FeatureEngineering",
+    "Trainer": "ModelTraining",
+    "trainer": "ModelTraining",
+    "Training": "ModelTraining",
+    "training": "ModelTraining",
+    "ModelTrainer": "ModelTraining",
+    "model_trainer": "ModelTraining",
+    "Evaluator": "ModelEvaluation",
+    "evaluator": "ModelEvaluation",
+    "Evaluation": "ModelEvaluation",
+    "evaluation": "ModelEvaluation",
+    "Predictor": "ModelInference",
+    "predictor": "ModelInference",
+    "Inference": "ModelInference",
+    "inference": "ModelInference",
+    "Scorer": "ModelInference",
+    "scorer": "ModelInference",
     "Aggregator": "Custom",
     "aggregator": "Custom",
     "Splitter": "Custom",
@@ -136,7 +155,8 @@ _CATEGORY_MAPPING: dict[str, str] = {
 
 _VALID_CATEGORIES = {
     "Extractor", "Transformer", "Loader", "Reconciliator",
-    "QualityCheck", "Notifier", "Sensor", "Custom",
+    "QualityCheck", "FeatureEngineering", "ModelTraining",
+    "ModelEvaluation", "ModelInference", "Notifier", "Sensor", "Custom",
 }
 
 _VALID_EXECUTOR_TYPES = {

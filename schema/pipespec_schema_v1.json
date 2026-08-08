@@ -152,11 +152,15 @@
           "Loader",
           "Reconciliator",
           "QualityCheck",
+          "FeatureEngineering",
+          "ModelTraining",
+          "ModelEvaluation",
+          "ModelInference",
           "Notifier",
           "Sensor",
           "Custom"
         ],
-        "description": "PipeSpec v1 component taxonomy (8 categories)."
+        "description": "PipeSpec v1 component taxonomy, including data transformation and ML lifecycle categories."
       },
       "PipelineSummary": {
         "type": "object",
@@ -278,12 +282,23 @@
           },
           "kind": {
             "type": "string",
-            "enum": ["file", "table", "api", "object", "stream"],
-            "description": "Abstract kind of data asset."
+            "enum": [
+              "file",
+              "table",
+              "api",
+              "object",
+              "stream",
+              "features",
+              "model",
+              "metrics",
+              "predictions",
+              "embedding"
+            ],
+            "description": "Abstract kind of data or ML asset."
           },
           "format": {
             "type": "string",
-            "description": "Data format (e.g., json, csv, parquet, sql). Free-form string in v1."
+            "description": "Data or ML artifact format (e.g., json, csv, parquet, sql, pickle, joblib, onnx). Free-form string in v1."
           },
           "path_pattern": {
             "description": "URI/path/pattern. Can be null if not applicable (e.g., in-memory object).",
@@ -356,6 +371,10 @@
               "database",
               "filesystem",
               "object_store",
+              "feature_store",
+              "model_registry",
+              "experiment_tracker",
+              "vector_store",
               "message_queue",
               "smtp",
               "other"
@@ -559,6 +578,10 @@
               "database",
               "filesystem",
               "object_store",
+              "feature_store",
+              "model_registry",
+              "experiment_tracker",
+              "vector_store",
               "message_queue",
               "smtp",
               "other"

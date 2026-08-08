@@ -1,0 +1,243 @@
+{
+  "pipespec_version": "1.0",
+  "metadata": {
+    "analysis_timestamp": "2026-07-10T00:00:00Z",
+    "source_file": "examples/ml_risk_model_pipeline.txt",
+    "llm_provider": "manual",
+    "llm_model": "human-authored"
+  },
+  "pipeline_summary": {
+    "name": "patient_risk_model_pipeline",
+    "description": "Ingest patient vital signs, build model features, train a risk model, and persist model and metrics artifacts.",
+    "flow_patterns": ["sequential"],
+    "task_executors": ["python"],
+    "complexity": "medium"
+  },
+  "components": [
+    {
+      "id": "ingest_vitals",
+      "name": "Ingest Vitals",
+      "category": "Extractor",
+      "description": "Load patient vital signs from a CSV file.",
+      "executor_type": "python",
+      "io_spec": [
+        {
+          "name": "vitals_csv",
+          "direction": "input",
+          "kind": "file",
+          "format": "csv",
+          "path_pattern": "input/vital_signs.csv",
+          "connection_id": "local_filesystem"
+        },
+        {
+          "name": "raw_vitals",
+          "direction": "output",
+          "kind": "table",
+          "format": "csv",
+          "path_pattern": "outputs/ingest/raw_vitals.csv",
+          "connection_id": "local_filesystem"
+        }
+      ],
+      "upstream_policy": { "type": "all_success", "timeout_seconds": null },
+      "retry_policy": {
+        "max_attempts": 1,
+        "delay_seconds": 30,
+        "exponential_backoff": false,
+        "retry_on": ["timeout"]
+      },
+      "connections": [
+        { "id": "local_filesystem", "type": "filesystem", "purpose": "Local input and output files" }
+      ]
+    },
+    {
+      "id": "build_features",
+      "name": "Build Features",
+      "category": "FeatureEngineering",
+      "description": "Clean vital signs and derive patient-level model features.",
+      "executor_type": "python",
+      "io_spec": [
+        {
+          "name": "raw_vitals",
+          "direction": "input",
+          "kind": "table",
+          "format": "csv",
+          "path_pattern": "outputs/ingest/raw_vitals.csv",
+          "connection_id": "local_filesystem"
+        },
+        {
+          "name": "risk_features",
+          "direction": "output",
+          "kind": "features",
+          "format": "parquet",
+          "path_pattern": "features/risk_features.parquet",
+          "connection_id": "feature_store"
+        }
+      ],
+      "upstream_policy": { "type": "all_success", "timeout_seconds": null },
+      "retry_policy": {
+        "max_attempts": 1,
+        "delay_seconds": 30,
+        "exponential_backoff": false,
+        "retry_on": ["timeout"]
+      },
+      "connections": [
+        { "id": "local_filesystem", "type": "filesystem", "purpose": "Read ingested data" },
+        { "id": "feature_store", "type": "feature_store", "purpose": "Persist model features" }
+      ]
+    },
+    {
+      "id": "train_risk_model",
+      "name": "Train Risk Model",
+      "category": "ModelTraining",
+      "description": "Train a patient risk model from engineered features and persist the model plus training metrics.",
+      "executor_type": "python",
+      "io_spec": [
+        {
+          "name": "risk_features",
+          "direction": "input",
+          "kind": "features",
+          "format": "parquet",
+          "path_pattern": "features/risk_features.parquet",
+          "connection_id": "feature_store"
+        },
+        {
+          "name": "risk_model",
+          "direction": "output",
+          "kind": "model",
+          "format": "pickle",
+          "path_pattern": "models/risk_model.pkl",
+          "connection_id": "model_registry"
+        },
+        {
+          "name": "training_metrics",
+          "direction": "output",
+          "kind": "metrics",
+          "format": "json",
+          "path_pattern": "metrics/training_metrics.json",
+          "connection_id": "experiment_tracker"
+        }
+      ],
+      "upstream_policy": { "type": "all_success", "timeout_seconds": null },
+      "retry_policy": {
+        "max_attempts": 1,
+        "delay_seconds": 30,
+        "exponential_backoff": false,
+        "retry_on": ["timeout"]
+      },
+      "connections": [
+        { "id": "feature_store", "type": "feature_store", "purpose": "Read model features" },
+        { "id": "model_registry", "type": "model_registry", "purpose": "Persist trained model artifact" },
+        { "id": "experiment_tracker", "type": "experiment_tracker", "purpose": "Persist model metrics" }
+      ]
+    }
+  ],
+  "flow_structure": {
+    "pattern": "sequential",
+    "entry_points": ["ingest_vitals"],
+    "nodes": {
+      "ingest_vitals": {
+        "kind": "Task",
+        "component_type_id": "ingest_vitals",
+        "upstream_policy": { "type": "all_success", "timeout_seconds": null },
+        "next_nodes": ["build_features"],
+        "branch_config": null,
+        "sensor_config": null,
+        "parallel_config": null
+      },
+      "build_features": {
+        "kind": "Task",
+        "component_type_id": "build_features",
+        "upstream_policy": { "type": "all_success", "timeout_seconds": null },
+        "next_nodes": ["train_risk_model"],
+        "branch_config": null,
+        "sensor_config": null,
+        "parallel_config": null
+      },
+      "train_risk_model": {
+        "kind": "Task",
+        "component_type_id": "train_risk_model",
+        "upstream_policy": { "type": "all_success", "timeout_seconds": null },
+        "next_nodes": [],
+        "branch_config": null,
+        "sensor_config": null,
+        "parallel_config": null
+      }
+    },
+    "edges": [
+      {
+        "from": "ingest_vitals",
+        "to": "build_features",
+        "edge_type": "success",
+        "condition": null,
+        "metadata": {}
+      },
+      {
+        "from": "build_features",
+        "to": "train_risk_model",
+        "edge_type": "success",
+        "condition": null,
+        "metadata": {}
+      }
+    ]
+  },
+  "parameters": {
+    "pipeline": {},
+    "schedule": {},
+    "execution": {},
+    "components": {},
+    "environment": {}
+  },
+  "integrations": {
+    "connections": [
+      {
+        "id": "local_filesystem",
+        "name": "Local Filesystem",
+        "type": "filesystem",
+        "config": { "base_path": "." },
+        "authentication": { "type": "none" },
+        "used_by_components": ["ingest_vitals", "build_features"],
+        "direction": "both",
+        "rate_limit": null,
+        "datasets": null
+      },
+      {
+        "id": "feature_store",
+        "name": "Feature Store",
+        "type": "feature_store",
+        "config": { "base_path": "features/" },
+        "authentication": { "type": "none" },
+        "used_by_components": ["build_features", "train_risk_model"],
+        "direction": "both",
+        "rate_limit": null,
+        "datasets": null
+      },
+      {
+        "id": "model_registry",
+        "name": "Model Registry",
+        "type": "model_registry",
+        "config": { "base_path": "models/" },
+        "authentication": { "type": "none" },
+        "used_by_components": ["train_risk_model"],
+        "direction": "output",
+        "rate_limit": null,
+        "datasets": null
+      },
+      {
+        "id": "experiment_tracker",
+        "name": "Experiment Tracker",
+        "type": "experiment_tracker",
+        "config": { "base_path": "metrics/" },
+        "authentication": { "type": "none" },
+        "used_by_components": ["train_risk_model"],
+        "direction": "output",
+        "rate_limit": null,
+        "datasets": null
+      }
+    ],
+    "data_lineage": {
+      "sources": ["vital_signs.csv"],
+      "sinks": ["risk_model.pkl", "training_metrics.json"],
+      "intermediate_datasets": ["raw_vitals.csv", "risk_features.parquet"]
+    }
+  }
+}

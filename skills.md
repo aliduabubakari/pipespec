@@ -1,15 +1,17 @@
-# PipeSpec v1 — LLM Skills Reference
+# PipeSpec v1 — LLM Reference Manual
 
-> **A self-contained guide for any LLM to generate valid PipeSpec v1 pipeline documents.**
+> **A detailed schema and authoring reference for PipeSpec v1 pipeline documents.**
 >
-> PipeSpec is a platform-agnostic, LLM-friendly extraction format for describing data pipelines as structured JSON documents.
-> Use this reference to produce valid, well-formed `*.pipespec.json` output from natural-language pipeline descriptions.
+> PipeSpec is the source-facing layer of OPOS. It records pipeline intent, design structure, integrations, parameters, assumptions, and unresolved information in a platform-independent JSON document.
+> Use this manual with the concise `pipespec-authoring` skill. The skill defines the governed authoring procedure; this manual supplies the detailed field-level guidance.
+
+An authoring agent produces a **candidate** PipeSpec. Schema and semantic validators report document quality. A human or explicitly configured policy gate decides whether that candidate becomes the accepted input to deterministic OrchSpec compilation. The authoring agent does not grant acceptance, generate the canonical OrchSpec, or render target workflow code.
 
 ---
 
 ## 1. What PipeSpec Is
 
-PipeSpec captures the **orchestration skeleton** of a data pipeline:
+PipeSpec captures the **source-facing design** of a data pipeline:
 
 - **What** each component does (category, executor type, I/O)
 - **How** components connect (DAG topology: nodes + edges)

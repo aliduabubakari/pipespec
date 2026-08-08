@@ -105,8 +105,20 @@ DEFAULT_ATTEMPTS = 3
 MAX_DESCRIPTION_CHARS = 8_000   # Truncate long descriptions to keep prompt focused
 MAX_DOC_CHARS = 12_000          # Truncate doc preview if enormous
 
-VALID_CATEGORIES = ["Extractor", "Transformer", "Loader", "Reconciliator",
-                    "QualityCheck", "Notifier", "Sensor", "Custom"]
+VALID_CATEGORIES = [
+    "Extractor",
+    "Transformer",
+    "Loader",
+    "Reconciliator",
+    "QualityCheck",
+    "FeatureEngineering",
+    "ModelTraining",
+    "ModelEvaluation",
+    "ModelInference",
+    "Notifier",
+    "Sensor",
+    "Custom",
+]
 VALID_EXECUTOR_TYPES = ["python", "http", "sql", "bash", "email", "docker", "custom"]
 
 console = Console()
@@ -161,7 +173,8 @@ def _schema_enum_summary() -> str:
         - node.kind: one of [Task, Group, Branch, Sensor, ParallelGroup]
         - edge.edge_type: one of [success, failure, always, conditional]
         - io_spec[].direction: one of [input, output]
-        - io_spec[].kind: one of [file, table, api, object, stream]
+        - io_spec[].kind: one of [file, table, api, object, stream, features, model, metrics, predictions, embedding]
+        - common ML formats: pickle, pkl, joblib, onnx, pmml, mlflow, skops, npy, npz
     """).strip()
 
 
