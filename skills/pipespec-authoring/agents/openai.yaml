@@ -1,0 +1,4 @@
+interface:
+  display_name: "PipeSpec Authoring"
+  short_description: "Create and validate candidate PipeSpec designs"
+  default_prompt: "Use $pipespec-authoring to turn this pipeline request into a reviewable candidate PipeSpec and validate it without embedding secrets."
